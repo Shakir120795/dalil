@@ -1,0 +1,8 @@
+[
+ {"q":"wuzu kab toot ta hai","expect":["bukhari","muslim"]},
+ {"q":"zakat kis par farz hai","expect":["quran:9:60","quran:2:43"]},
+ {"q":"roze ka hukm kya hai","expect":["quran:2:183","quran:2:185"]},
+ {"q":"sood lena kaisa hai","expect":["quran:2:275"]},
+ {"q":"namaz ki ahmiyat","expect":["quran:2:43"]},
+ {"q":"intention in deeds","expect":["bukhari:1"]}
+]
