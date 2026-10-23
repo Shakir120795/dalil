@@ -39,8 +39,27 @@ async function embedHfInference(text: string): Promise<number[]> {
   return l2normalize(vec);
 }
 
+// Cloudflare Workers AI (free daily quota) — wahi model @cf/baai/bge-m3.
+// Response: { result: { data: [[1024 floats]], shape: [1, 1024] } } (pooled).
+async function embedCloudflare(text: string): Promise<number[]> {
+  const acct = process.env.CF_ACCOUNT_ID ?? "";
+  const url = `https://api.cloudflare.com/client/v4/accounts/${acct}/ai/run/@cf/baai/bge-m3`;
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.EMBED_TOKEN ?? ""}` },
+    body: JSON.stringify({ text: text.slice(0, 500) }),
+  });
+  if (!r.ok) throw new Error(`cf embed ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  const j = (await r.json()) as { result?: { data?: number[][] }; errors?: unknown };
+  const vec = j.result?.data?.[0];
+  if (!vec || vec.length !== 1024) throw new Error("cf embed bad shape");
+  return l2normalize(vec);
+}
+
 async function embedRemote(text: string): Promise<number[]> {
-  if ((process.env.EMBED_PROVIDER ?? "").toLowerCase() === "hf") return embedHfInference(text);
+  const provider = (process.env.EMBED_PROVIDER ?? "").toLowerCase();
+  if (provider === "hf") return embedHfInference(text);
+  if (provider === "cf") return embedCloudflare(text);
   const r = await fetch(`${process.env.EMBED_URL}/embed`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.EMBED_TOKEN ?? ""}` },
