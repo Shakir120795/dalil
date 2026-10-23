@@ -1,0 +1,44 @@
+name: Ingest corpus (Quran + Hadith)
+on:
+  workflow_dispatch:
+    inputs:
+      part:
+        description: "Which part to run"
+        type: choice
+        options: [all, quran, bukhari, muslim]
+        default: all
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -r ingest_cf/requirements.txt
+      - name: Quran
+        if: inputs.part == 'all' || inputs.part == 'quran'
+        env:
+          SUPABASE_URL: https://fnnhhffkjttnynywuyan.supabase.co
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: python ingest_cf/ingest_quran_cf.py
+      - name: Bukhari
+        if: inputs.part == 'all' || inputs.part == 'bukhari'
+        env:
+          SUPABASE_URL: https://fnnhhffkjttnynywuyan.supabase.co
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: python ingest_cf/ingest_hadith_cf.py bukhari
+      - name: Muslim
+        if: inputs.part == 'all' || inputs.part == 'muslim'
+        env:
+          SUPABASE_URL: https://fnnhhffkjttnynywuyan.supabase.co
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: python ingest_cf/ingest_hadith_cf.py muslim
