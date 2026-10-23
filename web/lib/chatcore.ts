@@ -9,7 +9,36 @@ export function normalizeQuery(t: string) {
   return t.toLowerCase().trim().replace(/\s+/g, " ").slice(0, 500);
 }
 
+function l2normalize(v: number[]): number[] {
+  const n = Math.sqrt(v.reduce((s, x) => s + x * x, 0)) || 1;
+  return v.map(x => x / n);
+}
+
+// HF Inference (free tier) BAAI/bge-m3 — wahi model jo DB ke vectors ka hai,
+// isliye purane vectors ke saath compatible. Response kabhi pooled [1024]
+// aata hai, kabhi token-level [[...], ...] — bge-m3 ka pooling CLS hai,
+// isliye token-level par pehla vector + normalize hamare self-hosted
+// service (normalize_embeddings=True, CLS pooling) ke barabar hai.
+async function embedHfInference(text: string): Promise<number[]> {
+  const url = "https://router.huggingface.co/hf-inference/models/BAAI/bge-m3";
+  const headers = { "Content-Type": "application/json", Authorization: `Bearer ${process.env.EMBED_TOKEN ?? ""}` };
+  const body = JSON.stringify({ inputs: text.slice(0, 500), options: { wait_for_model: true } });
+  let r = await fetch(url, { method: "POST", headers, body });
+  if (r.status === 503) {  // model warm-up: ek retry
+    await new Promise(res => setTimeout(res, 3000));
+    r = await fetch(url, { method: "POST", headers, body });
+  }
+  if (!r.ok) throw new Error("embed service down");
+  const j = (await r.json()) as unknown;
+  let vec: number[] | null = null;
+  if (Array.isArray(j) && typeof j[0] === "number") vec = j as number[];
+  else if (Array.isArray(j) && Array.isArray(j[0]) && typeof (j[0] as unknown[])[0] === "number") vec = (j[0] as number[]).slice();
+  if (!vec || vec.length !== 1024) throw new Error("embed bad shape");
+  return l2normalize(vec);
+}
+
 async function embedRemote(text: string): Promise<number[]> {
+  if ((process.env.EMBED_PROVIDER ?? "").toLowerCase() === "hf") return embedHfInference(text);
   const r = await fetch(`${process.env.EMBED_URL}/embed`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.EMBED_TOKEN ?? ""}` },
