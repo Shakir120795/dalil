@@ -28,11 +28,13 @@ async function embedHfInference(text: string): Promise<number[]> {
     await new Promise(res => setTimeout(res, 3000));
     r = await fetch(url, { method: "POST", headers, body });
   }
-  if (!r.ok) throw new Error("embed service down");
+  if (!r.ok) throw new Error(`hf embed ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = (await r.json()) as unknown;
-  let vec: number[] | null = null;
-  if (Array.isArray(j) && typeof j[0] === "number") vec = j as number[];
-  else if (Array.isArray(j) && Array.isArray(j[0]) && typeof (j[0] as unknown[])[0] === "number") vec = (j[0] as number[]).slice();
+  // Sambhav shapes: [1024] pooled | [seq][1024] token-level | [1][seq][1024] batch.
+  // Token-level/batch par bge-m3 ka CLS vector = sabse andar ka pehla vector.
+  let cur: unknown = j;
+  while (Array.isArray(cur) && Array.isArray(cur[0])) cur = cur[0];
+  const vec = Array.isArray(cur) && typeof cur[0] === "number" ? (cur as number[]) : null;
   if (!vec || vec.length !== 1024) throw new Error("embed bad shape");
   return l2normalize(vec);
 }

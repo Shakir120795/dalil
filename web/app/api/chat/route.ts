@@ -29,6 +29,7 @@ export async function POST(req: Request) {
     return Response.json({ answered: hits.length > 0, cards, answer: gated.answer,
       answer_preview: gated.answer_preview, answer_locked: gated.answer_locked, topic: ex.topic });
   } catch (e: any) {
+    console.error("chat error:", e);
     return Response.json({ error: "The server is busy right now. Please try again in a little while." }, { status: 503 });
   }
 }

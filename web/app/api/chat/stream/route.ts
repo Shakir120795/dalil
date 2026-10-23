@@ -54,7 +54,8 @@ export async function POST(req: Request) {
           } else send("answer_rejected", {});
         }
         send("done", {});
-      } catch {
+      } catch (e) {
+        console.error("chat/stream error:", e);
         send("error", { error: "The server is busy right now. Please try again in a little while." });
       } finally {
         controller.close();
