@@ -3,9 +3,21 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 // Lazy client: SSR/prerender ke dauran env na ho to bhi module load ho jaye;
 // asal client browser me pehle istemal par banta hai.
+// Env missing ho to createClient throw karta hai ("supabaseUrl is required") aur
+// poora app crash ho jata hai — isliye fallback placeholder client banta hai:
+// UI khulta hai, auth "logged out" behave karta hai, asal data tabhi chalega
+// jab Vercel me NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY set honge.
+const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SB_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+export const supabaseReady = Boolean(SB_URL && SB_ANON);
+
 let _sbc: SupabaseClient | null = null;
 function getSbc(): SupabaseClient {
-  if (!_sbc) _sbc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  if (!_sbc) {
+    _sbc = supabaseReady
+      ? createClient(SB_URL!, SB_ANON!)
+      : createClient("https://placeholder.supabase.co", "placeholder-anon-key");
+  }
   return _sbc;
 }
 export const sbc: SupabaseClient = new Proxy({} as SupabaseClient, {
