@@ -65,7 +65,14 @@ def batched(rows, n):
 
 def upsert(table, rows, conflict):
     for b in batched(rows, 200):
-        sb.table(table).upsert(b, on_conflict=conflict).execute()
+        for attempt in range(4):
+            try:
+                sb.table(table).upsert(b, on_conflict=conflict).execute()
+                break
+            except Exception:
+                if attempt == 3:
+                    raise
+                time.sleep(3 * (attempt + 1))
 
 
 def existing_refs(source):
